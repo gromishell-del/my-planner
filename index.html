@@ -17,7 +17,6 @@
             --transition: 0.2s ease;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --header-h: 60px; --nav-h: 64px;
-            /* Group Colors */
             --group-work: #3b82f6; --group-home: #22c55e; --group-study: #a855f7; --group-personal: #f59e0b; --group-other: #6b7280;
         }
         [data-theme="light"] {
@@ -203,7 +202,7 @@
             .modal-overlay.active .modal { transform: translateY(0); }
             .modal { border: none; padding: 0; }
             .modal-head { padding: 14px; border-bottom: 1px solid var(--border); margin-bottom: 0; flex-shrink: 0; }
-            #taskForm { padding: 14px; flex: 1; overflow-y: auto; }
+            #taskForm, #freeTaskForm { padding: 14px; flex: 1; overflow-y: auto; }
             .form-actions { padding: 14px; border-top: 1px solid var(--border); flex-shrink: 0; margin-top: 0; background: var(--bg-secondary); }
             .form-input, .form-textarea, .form-select, .date-input { font-size: 16px; }
         }
@@ -253,8 +252,9 @@
             <div class="dropdown">
                 <button class="btn" id="dataBtn" type="button">💾 Данные</button>
                 <div class="dropdown-menu" id="dataMenu">
-                    <button class="dropdown-item" onclick="exportJSON()">📤 Экспорт</button>
-                    <button class="dropdown-item" onclick="document.getElementById('fileInput').click()">📥 Импорт</button>
+                    <button class="dropdown-item" onclick="saveToFile()">💾 Сохранить в файл</button>
+                    <button class="dropdown-item" onclick="loadFromFile()">📂 Загрузить из файла</button>
+                    <div class="dropdown-divider"></div>
                     <button class="dropdown-item" onclick="clearData()" style="color:var(--danger)">🗑️ Очистить</button>
                 </div>
             </div>
@@ -292,7 +292,7 @@
                 <div id="weekBreak"></div>
             </div>
 
-            <!-- Tab: Free Tasks (Новая вкладка) -->
+            <!-- Tab: Free Tasks -->
             <div class="tab-content" id="tab-free">
                 <div id="freeStats"></div>
                 <div class="filter-group" id="freeGroupFilter">
@@ -413,8 +413,8 @@
                 <button class="btn" onclick="setTheme('blue')" style="padding:8px">💙</button>
                 <button class="btn" onclick="setTheme('purple')" style="padding:8px">💜</button>
             </div>
-            <button class="btn" style="width:100%;margin-bottom:6px" onclick="exportJSON(); closeModal()">📤 Экспорт</button>
-            <button class="btn" style="width:100%;margin-bottom:6px" onclick="document.getElementById('fileInput').click(); closeModal()">📥 Импорт</button>
+            <button class="btn" style="width:100%;margin-bottom:6px" onclick="saveToFile(); closeModal()">💾 Сохранить в файл</button>
+            <button class="btn" style="width:100%;margin-bottom:6px" onclick="loadFromFile(); closeModal()">📂 Загрузить из файла</button>
             <button class="btn" style="width:100%;color:var(--danger);border-color:var(--danger)" onclick="clearData(); closeModal()">🗑️ Очистить</button>
         </div>
     </div>
@@ -427,6 +427,9 @@
     // === STATE ===
     let curMonth = new Date().getMonth(), curYear = new Date().getFullYear();
     let selDate = null, tasks = {}, freeTasks = [], templates = {}, filter = 'all', freeFilter = 'all';
+    let fileHandle = null;
+    const canUseFileSystem = 'showSaveFilePicker' in window && 'showOpenFilePicker' in window;
+
     const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
     const DAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
@@ -444,7 +447,7 @@
         setTimeout(() => { t.classList.add('hiding'); setTimeout(()=>t.remove(), 2500); }, 2500);
     }
 
-    // === STORAGE ===
+    // === STORAGE & FILE SYSTEM ===
     function load() {
         try {
             const t = localStorage.getItem('pl_tasks'); if(t) tasks = JSON.parse(t);
@@ -458,6 +461,59 @@
             localStorage.setItem('pl_free_tasks', JSON.stringify(freeTasks));
             localStorage.setItem('pl_tpls', JSON.stringify(templates));
         } catch(e) { toast('❌ Ошибка сохранения', 'error'); }
+    }
+
+    async function saveToFile() {
+        try {
+            const data = { tasks, freeTasks, templates, v: 4, saved: new Date().toISOString() };
+            const json = JSON.stringify(data, null, 2);
+            if (canUseFileSystem) {
+                if (!fileHandle) {
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: 'planner.json',
+                        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+                    });
+                }
+                const writable = await fileHandle.createWritable();
+                await writable.write(json);
+                await writable.close();
+                toast('💾 Сохранено в planner.json', 'success');
+            } else {
+                const blob = new Blob([json], { type: 'application/json' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = `planner_${fmt(new Date())}.json`; a.click();
+                toast('📥 Файл скачан', 'success');
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') toast('❌ Ошибка сохранения: ' + e.message, 'error');
+        }
+    }
+
+    async function loadFromFile() {
+        try {
+            if (canUseFileSystem) {
+                [fileHandle] = await window.showOpenFilePicker({
+                    types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+                });
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+                applyImport(JSON.parse(text));
+                toast('📂 Загружено из planner.json', 'success');
+            } else {
+                document.getElementById('fileInput').click();
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') toast('❌ Ошибка загрузки: ' + e.message, 'error');
+        }
+    }
+
+    function applyImport(data) {
+        if (!data.tasks) throw new Error('Неверный формат');
+        tasks = data.tasks || {};
+        freeTasks = data.freeTasks || [];
+        templates = data.templates || {};
+        save();
+        renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); renderFreeTasks();
     }
 
     // === DAY TASK LOGIC ===
@@ -677,10 +733,6 @@
     };
     window.applyTpl = function(n) { const t=templates[n]; if(!t||!selDate) return; t.tasks.forEach(d=>addTask(selDate, d)); save(); renderDetail(selDate); renderCal(); updToday(); toast(`"${n}" применён`); };
     window.setTheme = function(n) { document.body.setAttribute('data-theme', n); localStorage.setItem('pl_theme', n); };
-    window.exportJSON = function() {
-        const b = new Blob([JSON.stringify({tasks, freeTasks, templates, v:3, t:new Date().toISOString()}, null, 2)], {type:'application/json'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `planner_${fmt(new Date())}.json`; a.click(); toast('Экспортировано');
-    };
     window.clearData = function() { if(confirm('Удалить ВСЕ данные?')) { tasks={}; freeTasks=[]; templates={}; save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); renderFreeTasks(); toast('Очищено'); } };
     window.printView = function(type) {
         document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('active'));
@@ -710,19 +762,14 @@
         setTimeout(()=>window.print(), 100);
     };
 
+    // Handle File Input (Fallback)
     document.getElementById('fileInput').onchange = (e) => {
         const f = e.target.files[0]; if(!f) return;
         const r = new FileReader();
         r.onload = (ev) => {
             try {
-                const imp = JSON.parse(ev.target.result);
-                if(!imp.tasks) throw new Error('Неверный формат');
-                if(confirm('OK — заменить\nОтмена — объединить')) { tasks=imp.tasks||{}; freeTasks=imp.freeTasks||[]; templates=imp.templates||{}; }
-                else {
-                    for(const d in imp.tasks) { if(!tasks[d]) tasks[d]=[]; const ids=new Set(tasks[d].map(t=>t.id)); imp.tasks[d].forEach(t=>{if(!ids.has(t.id)) tasks[d].push(t);}); }
-                    for(const n in imp.templates) if(!templates[n]) templates[n]=imp.templates[n];
-                }
-                save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); renderFreeTasks(); toast('Импортировано');
+                applyImport(JSON.parse(ev.target.result));
+                toast('Импортировано из файла', 'success');
             } catch(err) { toast('Ошибка формата', 'error'); }
         };
         r.readAsText(f); e.target.value='';
@@ -750,7 +797,7 @@
         setTheme(saved);
         load(); renderCal(); renderTpls();
         selDate = fmt(new Date()); showDetail(selDate); updToday(); updWeek(); renderFreeTasks();
-        console.log('✅ Запущено.');
+        console.log('✅ Планировщик Pro запущен.');
     }
     window.onerror = function(msg, url, line) { console.error('❌ Глобальная ошибка:', msg, line); toast('Ошибка скрипта: ' + msg, 'error'); return false; };
     init();
