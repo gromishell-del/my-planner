@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0a0a">
-    <title>Планировщик</title>
+    <title>Планировщик Pro</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         :root {
@@ -17,6 +17,8 @@
             --transition: 0.2s ease;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --header-h: 60px; --nav-h: 64px;
+            /* Group Colors */
+            --group-work: #3b82f6; --group-home: #22c55e; --group-study: #a855f7; --group-personal: #f59e0b; --group-other: #6b7280;
         }
         [data-theme="light"] {
             --bg-primary: #f8f9fa; --bg-secondary: #ffffff; --bg-tertiary: #f1f3f5;
@@ -76,8 +78,8 @@
 
         .sidebar { display: flex; flex-direction: column; gap: 10px; animation: fadeIn 0.4s ease both; }
         .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
-        .tabs { display: flex; gap: 2px; background: var(--bg-tertiary); border-radius: 8px; padding: 2px; margin-bottom: 8px; }
-        .tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-secondary); border-radius: 6px; border: none; background: none; cursor: pointer; }
+        .tabs { display: flex; gap: 2px; background: var(--bg-tertiary); border-radius: 8px; padding: 2px; margin-bottom: 8px; overflow-x: auto; }
+        .tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text-secondary); border-radius: 6px; border: none; background: none; cursor: pointer; white-space: nowrap; min-width: 60px; }
         .tab.active { background: var(--bg-active); color: var(--text-primary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
@@ -119,13 +121,21 @@
         .task-check.checked::after { content: '✓'; color: var(--bg-primary); font-size: 11px; font-weight: 700; }
         .task-content { flex: 1; min-width: 0; }
         .task-text { font-size: 13px; font-weight: 500; line-height: 1.3; }
-        .task-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        .task-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .group-badge { padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 700; color: #fff; text-transform: uppercase; }
+        .group-work { background: var(--group-work); } .group-home { background: var(--group-home); }
+        .group-study { background: var(--group-study); } .group-personal { background: var(--group-personal); }
+        .group-other { background: var(--group-other); }
+
         .task-actions { display: flex; gap: 4px; }
         .task-btn { width: 30px; height: 30px; border: none; background: transparent; color: var(--text-muted); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
         .task-btn:active { background: var(--bg-active); color: var(--text-primary); }
         .task-btn.del:active { color: var(--danger); }
 
         .empty { text-align: center; padding: 16px 10px; color: var(--text-muted); font-size: 13px; }
+        .filter-group { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; }
+        .filter-chip { padding: 4px 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px; font-size: 11px; color: var(--text-secondary); white-space: nowrap; cursor: pointer; }
+        .filter-chip.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); }
 
         .search-bar { display: flex; gap: 6px; margin-bottom: 8px; }
         .search-input { flex: 1; padding: 8px 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 13px; min-height: 38px; }
@@ -183,7 +193,7 @@
             .sidebar { gap: 8px; }
             .card { padding: 10px; }
             .tabs { margin-bottom: 6px; }
-            .tab { padding: 6px 4px; font-size: 11px; }
+            .tab { padding: 6px 4px; font-size: 10px; }
             .stat-val { font-size: 15px; }
             .detail-stat-val { font-size: 14px; }
             .week-label { font-size: 11px; min-width: 50px; }
@@ -265,17 +275,38 @@
             <div class="tabs">
                 <button class="tab active" data-tab="today" onclick="switchTab('today')">📌 Сегодня</button>
                 <button class="tab" data-tab="week" onclick="switchTab('week')">📊 Неделя</button>
-                <button class="tab" data-tab="detail" onclick="switchTab('detail')">📋 Задачи</button>
+                <button class="tab" data-tab="free" onclick="switchTab('free')">📝 Задачи</button>
+                <button class="tab" data-tab="detail" onclick="switchTab('detail')">📅 По дням</button>
             </div>
+            
+            <!-- Tab: Today -->
             <div class="tab-content active" id="tab-today">
                 <div id="todayStats"></div>
                 <button class="add-btn" id="addTodayBtn" type="button" style="display:none" onclick="openModal(fmt(new Date()))">＋ Добавить на сегодня</button>
                 <div class="task-list" id="todayList"></div>
             </div>
+
+            <!-- Tab: Week -->
             <div class="tab-content" id="tab-week">
                 <div id="weekStats"></div>
                 <div id="weekBreak"></div>
             </div>
+
+            <!-- Tab: Free Tasks (Новая вкладка) -->
+            <div class="tab-content" id="tab-free">
+                <div id="freeStats"></div>
+                <div class="filter-group" id="freeGroupFilter">
+                    <div class="filter-chip active" onclick="filterFreeTasks('all', this)">Все</div>
+                    <div class="filter-chip" onclick="filterFreeTasks('work', this)">💼 Работа</div>
+                    <div class="filter-chip" onclick="filterFreeTasks('home', this)">🏠 Дом</div>
+                    <div class="filter-chip" onclick="filterFreeTasks('study', this)">🎓 Учёба</div>
+                    <div class="filter-chip" onclick="filterFreeTasks('personal', this)">👤 Личное</div>
+                </div>
+                <button class="add-btn" onclick="openFreeModal()">＋ Новая задача</button>
+                <div class="task-list" id="freeList"></div>
+            </div>
+
+            <!-- Tab: Detail (Day View) -->
             <div class="tab-content" id="tab-detail">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                     <div><div style="font-weight:700;font-size:15px" id="detailTitle">Выберите день</div><div style="font-size:11px;color:var(--text-secondary)" id="detailSub"></div></div>
@@ -316,12 +347,13 @@
     <div class="mobile-nav-inner">
         <button class="mobile-nav-item active" data-tab="today" onclick="switchTab('today')"><span class="nav-icon">📌</span><span>Сегодня</span></button>
         <button class="mobile-nav-item" data-tab="week" onclick="switchTab('week')"><span class="nav-icon">📊</span><span>Неделя</span></button>
-        <button class="mobile-nav-item" onclick="openModal(selDate || fmt(new Date()))"><span class="nav-icon" style="font-size:22px">＋</span><span>Добавить</span></button>
-        <button class="mobile-nav-item" data-tab="detail" onclick="switchTab('detail')"><span class="nav-icon">📋</span><span>Задачи</span></button>
+        <button class="mobile-nav-item" data-tab="free" onclick="switchTab('free')"><span class="nav-icon">📝</span><span>Задачи</span></button>
+        <button class="mobile-nav-item" onclick="openFreeModal()"><span class="nav-icon" style="font-size:22px">＋</span><span>Добавить</span></button>
         <button class="mobile-nav-item" onclick="document.getElementById('settingsModal').classList.add('active')"><span class="nav-icon">⚙️</span><span>Настройки</span></button>
     </div>
 </nav>
 
+<!-- Modal for Day Tasks -->
 <div class="modal-overlay" id="taskModal">
     <div class="modal">
         <div class="modal-head"><div class="modal-title" id="modalTitle">Новая задача</div><button class="modal-close" type="button" onclick="closeModal()">✕</button></div>
@@ -339,6 +371,31 @@
             <div class="form-group"><label class="form-label">Описание</label><textarea class="form-textarea" id="tDesc" placeholder="Подробности..."></textarea></div>
             <div class="form-actions">
                 <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-pri">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal for Free Tasks -->
+<div class="modal-overlay" id="freeTaskModal">
+    <div class="modal">
+        <div class="modal-head"><div class="modal-title">Новая задача (Список)</div><button class="modal-close" type="button" onclick="closeFreeModal()">✕</button></div>
+        <form id="freeTaskForm" onsubmit="return handleFreeFormSubmit(event)">
+            <div class="form-group"><label class="form-label">Название *</label><input type="text" class="form-input" id="ftName" required placeholder="Что сделать?"></div>
+            <div class="form-group">
+                <label class="form-label">Группа</label>
+                <select class="form-input form-select" id="ftGroup">
+                    <option value="work">💼 Работа</option>
+                    <option value="home">🏠 Дом</option>
+                    <option value="study">🎓 Учёба</option>
+                    <option value="personal">👤 Личное</option>
+                    <option value="other">📦 Другое</option>
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Описание</label><textarea class="form-textarea" id="ftDesc" placeholder="Подробности..."></textarea></div>
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="closeFreeModal()">Отмена</button>
                 <button type="submit" class="btn btn-pri">Сохранить</button>
             </div>
         </form>
@@ -369,11 +426,12 @@
 <script>
     // === STATE ===
     let curMonth = new Date().getMonth(), curYear = new Date().getFullYear();
-    let selDate = null, tasks = {}, templates = {}, filter = 'all';
+    let selDate = null, tasks = {}, freeTasks = [], templates = {}, filter = 'all', freeFilter = 'all';
     const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
     const DAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
     const DAYS_S = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const GROUPS = { work: '💼 Работа', home: '🏠 Дом', study: '🎓 Учёба', personal: '👤 Личное', other: '📦 Другое' };
 
     // === UTILS ===
     function fmt(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -390,17 +448,19 @@
     function load() {
         try {
             const t = localStorage.getItem('pl_tasks'); if(t) tasks = JSON.parse(t);
+            const f = localStorage.getItem('pl_free_tasks'); if(f) freeTasks = JSON.parse(f);
             const p = localStorage.getItem('pl_tpls'); if(p) templates = JSON.parse(p);
         } catch(e) { console.error('Load error', e); }
     }
     function save() {
         try {
             localStorage.setItem('pl_tasks', JSON.stringify(tasks));
+            localStorage.setItem('pl_free_tasks', JSON.stringify(freeTasks));
             localStorage.setItem('pl_tpls', JSON.stringify(templates));
         } catch(e) { toast('❌ Ошибка сохранения', 'error'); }
     }
 
-    // === TASK LOGIC ===
+    // === DAY TASK LOGIC ===
     function getTasks(ds) { return tasks[ds] || []; }
     function addTask(ds, data) {
         if(!tasks[ds]) tasks[ds] = [];
@@ -419,7 +479,21 @@
         save();
     }
 
-    // === RENDER ===
+    // === FREE TASK LOGIC ===
+    function addFreeTask(data) {
+        freeTasks.push({...data, id: Date.now().toString(36)+Math.random().toString(36).substr(2,5), completed:false, created:new Date().toISOString()});
+        save();
+    }
+    function toggleFree(id) {
+        const t = freeTasks.find(x=>x.id===id);
+        if(t) { t.completed=!t.completed; save(); renderFreeTasks(); }
+    }
+    function delFree(id) {
+        freeTasks = freeTasks.filter(x => x.id !== id);
+        save(); renderFreeTasks();
+    }
+
+    // === RENDER DAY ===
     function renderCal() {
         const grid = document.getElementById('calendarGrid');
         grid.innerHTML = '';
@@ -440,7 +514,7 @@
             const dt = getTasks(ds);
             c.innerHTML = `<div class="day-num">${dn}</div>${dt.length?`<div class="task-badge">${dt.length}</div>`:''}
                 <div class="day-tasks">${dt.slice(0, mob?1:3).map(t=>`<div class="day-task-preview ${t.completed?'completed':''}">${t.completed?'✓ ':''}${esc(t.name)}</div>`).join('')}</div>`;
-            c.onclick = () => { selDate=ds; if(mo!==curMonth){curMonth=mo;curYear=yr;} renderCal(); showDetail(ds); };
+            c.onclick = () => { selDate=ds; if(mo!==curMonth){curMonth=mo;curYear=yr;} renderCal(); showDetail(ds); switchTab('detail'); };
             grid.appendChild(c);
         }
         updStats();
@@ -503,6 +577,34 @@
         document.getElementById('weekBreak').innerHTML = rows;
     }
 
+    // === RENDER FREE TASKS ===
+    function renderFreeTasks() {
+        const list = document.getElementById('freeList');
+        let dt = [...freeTasks];
+        if(freeFilter !== 'all') dt = dt.filter(t => t.group === freeFilter);
+        
+        const tot = dt.length, done = dt.filter(t=>t.completed).length, act = tot-done, pct = tot?Math.round(done/tot*100):0;
+        
+        document.getElementById('freeStats').innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-weight:600;font-size:13px">📝 Независимые задачи</span></div>
+            <div class="detail-stats"><div class="detail-stat"><div class="detail-stat-val">${tot}</div><div class="detail-stat-lbl">Всего</div></div><div class="detail-stat"><div class="detail-stat-val">${done}</div><div class="detail-stat-lbl">Готово</div></div>
+            <div class="detail-stat"><div class="detail-stat-val">${act}</div><div class="detail-stat-lbl">Осталось</div></div><div class="detail-stat hl"><div class="detail-stat-val">${pct}%</div><div class="detail-stat-lbl">Прогресс</div></div></div>
+            <div class="progress" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+
+        if(!dt.length) { list.innerHTML = `<div class="empty">${freeFilter!=='all'?'Нет задач в этой группе':'Список пуст. Добавьте задачу!'}</div>`; return; }
+        
+        list.innerHTML = dt.map(t => `<div class="task-item ${t.completed?'completed':''}">
+            <div class="task-check ${t.completed?'checked':''}" onclick="toggleFree('${t.id}'); renderFreeTasks();"></div>
+            <div class="task-content"><div class="task-text">${esc(t.name)}</div>
+            <div class="task-meta"><span class="group-badge group-${t.group}">${GROUPS[t.group]||t.group}</span>${t.desc?`<span>${esc(t.desc)}</span>`:''}</div></div>
+            <div class="task-actions"><button class="task-btn del" onclick="if(confirm('Удалить?')){delFree('${t.id}');}">✕</button></div></div>`).join('');
+    }
+    window.filterFreeTasks = function(g, el) {
+        freeFilter = g;
+        document.querySelectorAll('#freeGroupFilter .filter-chip').forEach(c=>c.classList.remove('active'));
+        el.classList.add('active');
+        renderFreeTasks();
+    }
+
     function updStats() {
         let t=0,a=0,d=0; Object.values(tasks).forEach(arr=>arr.forEach(x=>{t++;if(x.completed)d++;else a++}));
         document.getElementById('sTotal').textContent=t; document.getElementById('sActive').textContent=a; document.getElementById('sDone').textContent=d;
@@ -519,7 +621,7 @@
     window.switchTab = function(tab) {
         document.querySelectorAll('.tab, .mobile-nav-item').forEach(x=>x.classList.toggle('active', x.dataset.tab===tab));
         document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
-        if(tab==='today') updToday(); if(tab==='week') updWeek();
+        if(tab==='today') updToday(); if(tab==='week') updWeek(); if(tab==='free') renderFreeTasks();
     };
     window.setFilter = function(f, btn) {
         filter = f;
@@ -535,66 +637,51 @@
         document.getElementById('taskModal').classList.add('active');
         setTimeout(()=>document.getElementById('tName').focus(), 100);
     };
-    window.closeModal = function() {
-        document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('active'));
+    window.openFreeModal = function() {
+        document.getElementById('freeTaskForm').reset();
+        document.getElementById('freeTaskModal').classList.add('active');
+        setTimeout(()=>document.getElementById('ftName').focus(), 100);
     };
+    window.closeModal = function() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('active')); };
+    window.closeFreeModal = function() { document.getElementById('freeTaskModal').classList.remove('active'); };
 
-    // ✅ ГАРАНТИРОВАННОЕ СОЗДАНИЕ ЗАДАЧИ
+    // ✅ DAY FORM SUBMIT
     window.handleFormSubmit = function(e) {
         e.preventDefault(); e.stopPropagation();
-        console.log('📝 Форма отправлена');
-        
         const ds = document.getElementById('tDate').value;
         const name = document.getElementById('tName').value.trim();
         if(!ds || !name) { toast('❌ Заполните дату и название', 'error'); return false; }
-        
-        const data = {
-            name,
-            start: document.getElementById('tStart').value,
-            end: document.getElementById('tEnd').value,
-            desc: document.getElementById('tDesc').value.trim(),
-            tags: document.getElementById('tTags').value.split(',').map(t=>t.trim()).filter(Boolean),
-            pri: document.getElementById('tPri').value
-        };
-        
-        console.log('💾 Сохраняю:', { date: ds, data });
+        const data = { name, start: document.getElementById('tStart').value, end: document.getElementById('tEnd').value, desc: document.getElementById('tDesc').value.trim(), tags: document.getElementById('tTags').value.split(',').map(t=>t.trim()).filter(Boolean), pri: document.getElementById('tPri').value };
+        try { addTask(ds, data); selDate = ds; closeModal(); renderCal(); showDetail(ds); updToday(); updWeek(); toast('✅ Задача создана'); return false; } 
+        catch(err) { console.error(err); toast('❌ Ошибка: ' + err.message, 'error'); return false; }
+    };
+
+    // ✅ FREE FORM SUBMIT
+    window.handleFreeFormSubmit = function(e) {
+        e.preventDefault(); e.stopPropagation();
+        const name = document.getElementById('ftName').value.trim();
+        const group = document.getElementById('ftGroup').value;
+        if(!name) { toast('❌ Введите название', 'error'); return false; }
         try {
-            addTask(ds, data);
-            selDate = ds;
-            closeModal();
-            renderCal();
-            showDetail(ds);
-            updToday();
-            updWeek();
-            toast('✅ Задача создана');
-            return false;
-        } catch(err) {
-            console.error(err);
-            toast('❌ Ошибка: ' + err.message, 'error');
-            return false;
-        }
+            addFreeTask({ name, group, desc: document.getElementById('ftDesc').value.trim() });
+            closeFreeModal(); renderFreeTasks(); toast('✅ Задача добавлена в список'); return false;
+        } catch(err) { console.error(err); toast('❌ Ошибка', 'error'); return false; }
     };
 
     window.saveTemplate = function() {
         if(!selDate) { selDate = fmt(new Date()); openModal(selDate); return; }
-        const dt = getTasks(selDate);
-        if(!dt.length) { toast('Нет задач для шаблона', 'warning'); return; }
-        const name = prompt('Название шаблона:');
-        if(!name) return;
+        const dt = getTasks(selDate); if(!dt.length) { toast('Нет задач для шаблона', 'warning'); return; }
+        const name = prompt('Название шаблона:'); if(!name) return;
         templates[name] = { tasks: dt.map(t=>({name:t.name,start:t.start,end:t.end,desc:t.desc,tags:t.tags,pri:t.pri})), created: new Date().toISOString() };
         save(); renderTpls(); toast('Шаблон сохранён');
     };
-    window.applyTpl = function(n) {
-        const t=templates[n]; if(!t||!selDate) return;
-        t.tasks.forEach(d=>addTask(selDate, d));
-        save(); renderDetail(selDate); renderCal(); updToday(); toast(`"${n}" применён`);
-    };
+    window.applyTpl = function(n) { const t=templates[n]; if(!t||!selDate) return; t.tasks.forEach(d=>addTask(selDate, d)); save(); renderDetail(selDate); renderCal(); updToday(); toast(`"${n}" применён`); };
     window.setTheme = function(n) { document.body.setAttribute('data-theme', n); localStorage.setItem('pl_theme', n); };
     window.exportJSON = function() {
-        const b = new Blob([JSON.stringify({tasks, templates, v:2, t:new Date().toISOString()}, null, 2)], {type:'application/json'});
+        const b = new Blob([JSON.stringify({tasks, freeTasks, templates, v:3, t:new Date().toISOString()}, null, 2)], {type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `planner_${fmt(new Date())}.json`; a.click(); toast('Экспортировано');
     };
-    window.clearData = function() { if(confirm('Удалить ВСЕ данные?')) { tasks={}; templates={}; save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); toast('Очищено'); } };
+    window.clearData = function() { if(confirm('Удалить ВСЕ данные?')) { tasks={}; freeTasks=[]; templates={}; save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); renderFreeTasks(); toast('Очищено'); } };
     window.printView = function(type) {
         document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('active'));
         const pa = document.getElementById('printArea');
@@ -623,7 +710,6 @@
         setTimeout(()=>window.print(), 100);
     };
 
-    // === INIT ===
     document.getElementById('fileInput').onchange = (e) => {
         const f = e.target.files[0]; if(!f) return;
         const r = new FileReader();
@@ -631,13 +717,12 @@
             try {
                 const imp = JSON.parse(ev.target.result);
                 if(!imp.tasks) throw new Error('Неверный формат');
-                const data = imp.tasks ? imp : {tasks:imp, templates:{}};
-                if(confirm('OK — заменить\nОтмена — объединить')) { tasks=data.tasks||{}; templates=data.templates||{}; }
+                if(confirm('OK — заменить\nОтмена — объединить')) { tasks=imp.tasks||{}; freeTasks=imp.freeTasks||[]; templates=imp.templates||{}; }
                 else {
-                    for(const d in data.tasks) { if(!tasks[d]) tasks[d]=[]; const ids=new Set(tasks[d].map(t=>t.id)); data.tasks[d].forEach(t=>{if(!ids.has(t.id)) tasks[d].push(t);}); }
-                    for(const n in data.templates) if(!templates[n]) templates[n]=data.templates[n];
+                    for(const d in imp.tasks) { if(!tasks[d]) tasks[d]=[]; const ids=new Set(tasks[d].map(t=>t.id)); imp.tasks[d].forEach(t=>{if(!ids.has(t.id)) tasks[d].push(t);}); }
+                    for(const n in imp.templates) if(!templates[n]) templates[n]=imp.templates[n];
                 }
-                save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); toast('Импортировано');
+                save(); renderCal(); if(selDate) renderDetail(selDate); renderTpls(); updToday(); updWeek(); renderFreeTasks(); toast('Импортировано');
             } catch(err) { toast('Ошибка формата', 'error'); }
         };
         r.readAsText(f); e.target.value='';
@@ -645,7 +730,7 @@
 
     document.getElementById('prevMonth').onclick = () => { curMonth--; if(curMonth<0){curMonth=11;curYear--;} renderCal(); };
     document.getElementById('nextMonth').onclick = () => { curMonth++; if(curMonth>11){curMonth=0;curYear++;} renderCal(); };
-    document.getElementById('todayBtn').onclick = () => { const t=new Date(); curMonth=t.getMonth(); curYear=t.getFullYear(); renderCal(); selDate=fmt(t); showDetail(selDate); updToday(); };
+    document.getElementById('todayBtn').onclick = () => { const t=new Date(); curMonth=t.getMonth(); curYear=t.getFullYear(); renderCal(); selDate=fmt(t); showDetail(selDate); updToday(); switchTab('today'); };
     document.getElementById('printBtn').onclick = (e) => { e.stopPropagation(); document.getElementById('printMenu').classList.toggle('active'); };
     document.getElementById('dataBtn').onclick = (e) => { e.stopPropagation(); document.getElementById('dataMenu').classList.toggle('active'); };
     document.addEventListener('click', () => document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.remove('active')));
@@ -664,8 +749,8 @@
         const saved = localStorage.getItem('pl_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         setTheme(saved);
         load(); renderCal(); renderTpls();
-        selDate = fmt(new Date()); showDetail(selDate); updToday(); updWeek();
-        console.log('✅ Запущено. Дата:', selDate);
+        selDate = fmt(new Date()); showDetail(selDate); updToday(); updWeek(); renderFreeTasks();
+        console.log('✅ Запущено.');
     }
     window.onerror = function(msg, url, line) { console.error('❌ Глобальная ошибка:', msg, line); toast('Ошибка скрипта: ' + msg, 'error'); return false; };
     init();
